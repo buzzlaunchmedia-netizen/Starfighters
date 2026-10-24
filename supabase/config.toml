@@ -1,0 +1,4 @@
+# PIN-only administrator access is verified inside the Edge Function.
+# No email account or member JWT is required; all private actions require an expiring server-validated admin token.
+[functions.starfighters-admin]
+verify_jwt = false

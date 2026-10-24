@@ -1,20 +1,21 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-interface Body { action: string; id?: string; payload?: Record<string, unknown>; file?: string; mime?: string; }
+export interface Body { action: string; id?: string; payload?: Record<string, unknown>; file?: string; mime?: string; passkey?: string; adminToken?: string; }
 async function all(db: SupabaseClient, table: string) {
   const rows = []; let start = 0;
   while (true) { const { data, error } = await db.from(table).select('*').range(start, start + 999); if (error) throw error; rows.push(...data); if (data.length < 1000) return rows; start += 1000; }
 }
 export async function handleAdmin(db: SupabaseClient, actor: string, body: Body) {
   const p = body.payload || {};
-  const audit = async (action: string, record_id?: string) => { const { error } = await db.from('sf_audit').insert({ actor, action, record_id }); if (error) throw error; };
+  const audit = async (action: string, record_id?: string) => { const { error } = await db.from('sf_pin_admin_audit').insert({ session_id: actor, action, record_id }); if (error) throw error; };
   if (body.action === 'overview') {
-    const [members, polls, votes, announcements, auditLog, accounts] = await Promise.all(['sf_members','sf_polls','sf_votes','sf_announcements','sf_audit','user_profiles'].map(table => all(db, table)));
+    const [members, polls, votes, announcements, legacyAudit, accounts, pinAudit] = await Promise.all(['sf_members','sf_polls','sf_votes','sf_announcements','sf_audit','user_profiles','sf_pin_admin_audit'].map(table => all(db, table)));
+    const auditLog = [...legacyAudit, ...pinAudit.map(entry => ({ id: entry.id, actor: 'PIN administrator', action: entry.action, record_id: entry.record_id, created_at: entry.created_at }))];
     const { data: settings, error } = await db.from('sf_settings').select('*').single(); if (error) throw error;
     return { members, polls, votes, announcements, auditLog, settings, accounts: accounts.map(a => ({ id: a.id, created_at: a.created_at })) };
   }
   if (body.action === 'review') {
     if (!['pending','approved','declined','follow-up','archived'].includes(String(p.status))) throw new Error('Invalid status');
-    const { error } = await db.from('sf_members').update({ status: p.status, notes: String(p.notes || '').slice(0, 4000), reviewed_by: actor, reviewed_at: new Date().toISOString() }).eq('id', body.id); if (error) throw error;
+    const { error } = await db.from('sf_members').update({ status: p.status, notes: String(p.notes || '').slice(0, 4000), reviewed_by: null, reviewed_admin_session_id: actor, reviewed_at: new Date().toISOString() }).eq('id', body.id); if (error) throw error;
     await audit('registration_' + p.status, body.id); return { ok: true };
   }
   if (body.action === 'announcement') {
