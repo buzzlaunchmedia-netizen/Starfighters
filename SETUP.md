@@ -43,6 +43,25 @@ No automated browser runner or build execution tool was available in this sessio
 - A checkbox is not independent enrollment verification. The owner must verify current enrollment before fighter participation; submission approval and sponsor recognition do not establish competition eligibility or sporting-event authorization.
 - Database schema and trigger creation succeeded. Manually test the footer on desktop/mobile, rejection of an unconfirmed aspiring boxer, successful declared-student registration/profile edits, continued access for non-student community roles, and admin review labels. Browser and real-account acceptance tests have not been run in this session.
 
+## Vercel deployment
+
+### Build failure addressed
+The supplied Vercel log failed because Rollup could not resolve `jspdf-autotable` imported by `src/lib/reports.ts`. The npm deprecation and Browserslist warnings were not the fatal error. Do not externalize the PDF library: the browser needs it bundled for private PDF exports.
+
+The root `vercel.json` now selects Vite, runs `npm run build`, serves `dist`, and explicitly installs compatible pinned PDF packages (`jspdf@4.2.1` and `jspdf-autotable@5.0.9`) along with the application's declared dependencies. This uses `--no-save --package-lock=false` because the platform-managed dependency manifest and lockfile are not edited by this fix. The report uses AutoTable's documented named export. The SPA rewrite allows direct visits and refreshes on `/register`, `/login`, `/dashboard`, `/polls`, and `/admin`.
+
+### Required deployment steps
+1. Push these changes, including the root `vercel.json`, to the GitHub branch connected to Vercel. Confirm Vercel builds the new commit, not the failing older commit.
+2. Keep Vercel's Root Directory at the repository root containing `index.html`, `vite.config.ts`, and `vercel.json`. Use the Vite framework preset; the repository configuration supplies the install command, build command, and output directory.
+3. In Vercel > Project Settings > Environment Variables, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for Production and Preview. Copy the existing project's public client values from its OnSpace Cloud configuration or exported environment configuration. The backend URL is `https://mrxbsbryfncbgcewmrxb.backend.onspace.ai`. Use its matching public anonymous key, not the service-role key. These values are compiled into the frontend, so redeploy after adding or changing them.
+4. Do not add `STARFIGHTERS_ADMIN_PASSKEY`, `SUPABASE_SERVICE_ROLE_KEY`, or database credentials as `VITE_*` variables. Keep privileged credentials exclusively in OnSpace Cloud Secrets.
+5. The Vercel deployment hosts the frontend only. The database, authentication, storage, and `starfighters-admin` Edge Function stay on OnSpace Cloud; files under `supabase/functions` are not automatically deployed as Vercel functions. Confirm the existing Edge Function remains deployed.
+6. Add the Vercel site URL and any custom domain to OnSpace Cloud's authentication Site URL / allowed redirect settings where needed. Google/Apple sign-in is not implemented; do not enable providers as part of this deployment fix.
+7. Redeploy without the previous build cache. Confirm the log installs both PDF packages and completes the Vite build. Then test a direct `/admin` visit, a `/register` refresh, account sign-in, and an authorized PDF download with real records.
+
+### Verification status
+The package versions and peer compatibility were checked against npm metadata and the configuration follows Vercel's documented install-command override. This session has no build runner or access to your Vercel project, so a successful Vercel build, browser routing, environment setup, and PDF downloads still require the redeployment checks above.
+
 ## Known boundaries
 - Authorized administrator account assignment is intentionally owner-configured, not automatic first-user elevation.
 - Account email changes, password recovery and account deletion require further dedicated flows. Owner can handle retention/data removal via Cloud management; the application archives submissions without erasing records.
