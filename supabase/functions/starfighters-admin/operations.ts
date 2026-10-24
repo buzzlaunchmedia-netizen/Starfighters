@@ -1,4 +1,5 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { saveSettings } from './settings.ts';
 export interface Body { action: string; id?: string; payload?: Record<string, unknown>; file?: string; mime?: string; passkey?: string; adminToken?: string; }
 async function all(db: SupabaseClient, table: string) {
   const rows = []; let start = 0;
@@ -20,7 +21,10 @@ export async function handleAdmin(db: SupabaseClient, actor: string, body: Body)
   }
   if (body.action === 'announcement') {
     if (!String(p.title || '').trim() || !String(p.content || '').trim()) throw new Error('Content required');
-    const values = { title: String(p.title).slice(0,200), content: String(p.content).slice(0,10000), kind: p.kind === 'event' ? 'event' : 'announcement', event_date: p.event_date || null, published: p.published === true };
+    if (!['event', 'announcement', 'news'].includes(String(p.kind)) || String(p.title).length > 200 || String(p.content).length > 10000) throw new Error('Invalid publication');
+    if (p.image_url && (!String(p.image_url).startsWith('https://') || String(p.image_url).length > 2048)) throw new Error('Invalid cover image');
+    if (p.event_date && !Number.isFinite(Date.parse(String(p.event_date)))) throw new Error('Invalid event date');
+    const values = { title: String(p.title).trim(), content: String(p.content).trim(), kind: p.kind, image_url: String(p.image_url || ''), event_date: p.kind === 'event' ? p.event_date || null : null, published: p.published === true };
     const { error } = body.id ? await db.from('sf_announcements').update(values).eq('id', body.id) : await db.from('sf_announcements').insert(values); if (error) throw error;
     await audit('announcement_saved', body.id); return { ok: true };
   }
@@ -37,14 +41,8 @@ export async function handleAdmin(db: SupabaseClient, actor: string, body: Body)
     await audit('poll_saved_' + p.status, body.id); return { ok: true };
   }
   if (body.action === 'settings') {
-    const links = Array.isArray(p.links) ? p.links : [];
-    for (const link of links) { if (!link || typeof link !== 'object') throw new Error('Invalid link'); const l = link as Record<string,unknown>; const u = new URL(String(l.url)); if (!['https:','mailto:','tel:'].includes(u.protocol)) throw new Error('Unsafe URL'); if (u.protocol==='tel:' && !/^\+?[0-9]{7,15}$/.test(u.pathname)) throw new Error('Invalid phone'); if (u.protocol==='mailto:' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u.pathname)) throw new Error('Invalid email'); }
-    for (const key of ['hero_url','logo_url']) { if (p[key] && !String(p[key]).startsWith('https://')) throw new Error('Images require HTTPS'); }
-    const featured = Array.isArray(p.featured) ? p.featured : [];
-    if (featured.length > 6) throw new Error('Maximum six featured profiles');
-    for (const person of featured) { if (!person || typeof person !== 'object' || !(person as Record<string,unknown>).name || !String((person as Record<string,unknown>).image).startsWith('https://')) throw new Error('Featured profiles need a name and HTTPS image'); }
-    const { error } = await db.from('sf_settings').update({ links, featured, logo_url: p.logo_url || '', hero_url: p.hero_url || '', contact_instructions: String(p.contact_instructions || '').slice(0,2000) }).eq('id',1); if (error) throw error;
-    await audit('public_settings_changed'); return { ok: true };
+    const result = await saveSettings(db, p);
+    await audit('public_settings_changed'); return result;
   }
   if (body.action === 'upload') {
     if (!body.file || !['image/jpeg','image/png','image/webp'].includes(body.mime || '')) throw new Error('Unsupported image');

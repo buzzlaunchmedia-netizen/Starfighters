@@ -1,9 +1,24 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
+import { ExternalLink } from 'lucide-react';
 import type { SiteSettings } from '@/types/community';
 import { useAdminAction } from '@/hooks/useAdmin';
-import BrandUpload from '@/components/forms/BrandUpload';
+import BrandingEditor from '@/components/forms/BrandingEditor';
+import WebsiteContentEditor from '@/components/forms/WebsiteContentEditor';
 import ContactEditor from '@/components/forms/ContactEditor';
 import FeaturedEditor from '@/components/forms/FeaturedEditor';
-export default function AdminSettings({settings}:{settings:SiteSettings}){const [draft,setDraft]=useState(settings);const {register,handleSubmit}=useForm<{instructions:string}>({defaultValues:{instructions:settings.contact_instructions}});const save=useAdminAction('settings');return <div className="space-y-6"><div><span className="eyebrow text-primary">YOUR IDENTITY. YOUR CONTACTS.</span><h1 className="text-4xl font-semibold mt-4">Brand & site settings</h1><p className="text-muted-foreground mt-3">Uploaded assets and enabled links appear on the public website after saving.</p></div><form onSubmit={handleSubmit(v=>save.mutate({payload:{...draft,contact_instructions:v.instructions}}))} className="panel"><div className="grid md:grid-cols-2 gap-6"><BrandUpload label="Approved Starfighters logo" value={draft.logo_url} onChange={url=>setDraft({...draft,logo_url:url})}/><BrandUpload label="Homepage boxing hero" value={draft.hero_url} onChange={url=>setDraft({...draft,hero_url:url})}/></div><label htmlFor="contact-instructions" className="mt-6">Public contact instructions</label><textarea id="contact-instructions" placeholder="How should visitors contact the team?" {...register('instructions')}/><button disabled={save.isPending} className="btn-primary mt-6">{save.isPending?'Publishing…':'Save & publish site settings'}</button><p className="text-xs text-muted-foreground mt-4">Apply any contact or featured-profile edits below before publishing. Public pages refresh within 30 seconds.</p></form><ContactEditor links={draft.links} onChange={links=>{setDraft({...draft,links});toast.success('Contact edits applied. Save settings above to publish.');}}/><FeaturedEditor featured={draft.featured} onChange={featured=>{setDraft({...draft,featured});toast.success('Profile edits applied. Save settings above to publish.');}}/></div>;}
+interface Props { settings: SiteSettings; }
+const TABS = [{ id: 'content', label: 'Page copy & layout' }, { id: 'branding', label: 'Branding & favicon' }, { id: 'contacts', label: 'Socials & WhatsApp' }, { id: 'featured', label: 'Featured profiles' }];
+export default function AdminSettings({ settings }: Props) {
+  const [tab, setTab] = useState('content');
+  const save = useAdminAction('settings');
+  return <div className="space-y-6">
+    <div className="flex flex-wrap items-end justify-between gap-6"><div><span className="eyebrow text-primary">YOUR WEBSITE. YOUR CONTROL.</span><h1 className="text-4xl font-semibold mt-4">Website editor</h1><p className="text-muted-foreground mt-3 max-w-2xl">Edit public headlines, section order, imagery, favicon, and official contacts. Publish news under News & updates.</p></div><Link to="/" target="_blank" rel="noopener noreferrer" className="btn-secondary"><ExternalLink size={18} />View public site</Link></div>
+    <nav aria-label="Website editor sections" className="flex gap-2 overflow-x-auto pb-2">{TABS.map(item => <button key={item.id} onClick={() => setTab(item.id)} aria-current={tab === item.id ? 'page' : undefined} className={`btn whitespace-nowrap ${tab === item.id ? 'bg-accent text-accent-foreground' : 'bg-secondary text-foreground hover:opacity-80'}`}>{item.label}</button>)}</nav>
+    {tab === 'content' && <WebsiteContentEditor key={JSON.stringify([settings.page_content, settings.sections])} settings={settings} />}
+    {tab === 'branding' && <BrandingEditor key={JSON.stringify([settings.logo_url, settings.hero_url, settings.favicon_url, settings.contact_instructions])} settings={settings} />}
+    {tab === 'contacts' && <ContactEditor key={JSON.stringify(settings.links)} links={settings.links} pending={save.isPending} onChange={links => save.mutate({ payload: { links } })} />}
+    {tab === 'featured' && <FeaturedEditor key={JSON.stringify(settings.featured)} featured={settings.featured} onChange={featured => save.mutate({ payload: { featured } })} />}
+    <p className="text-sm text-muted-foreground">Saved changes refresh on public pages within 30 seconds. Each editor publishes independently without overwriting other settings.</p>
+  </div>;
+}

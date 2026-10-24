@@ -30,7 +30,7 @@ export default function Admin() {
         {tab === 'registrations' && <AdminRegistrations members={data.members} />}
         {tab === 'polls' && <AdminPolls data={data} />}
         {tab === 'announcements' && <AdminAnnouncements announcements={data.announcements} />}
-        {tab === 'settings' && <AdminSettings key={JSON.stringify(data.settings)} settings={data.settings} />}
+        {tab === 'settings' && <AdminSettings settings={data.settings} />}
         {tab === 'reports' && <AdminReports data={data} />}
         {tab === 'audit' && <AdminAudit entries={data.auditLog} />}
       </> : null}

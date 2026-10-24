@@ -1,6 +1,18 @@
-import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Brand from '@/components/layout/Brand';
 import FooterSponsor from '@/components/features/FooterSponsor';
+import PublicContacts from '@/components/features/PublicContacts';
 import { useSettings } from '@/hooks/useCommunity';
-export default function Footer(){const {data,error}=useSettings();return <footer id="contact" className="px-6 md:px-16 pt-16 pb-8 border-t border-border"><div className="flex flex-col md:flex-row justify-between gap-8"><div><span className="eyebrow text-primary">LET'S BUILD SOMETHING STRONGER</span><h2 className="text-4xl md:text-6xl mt-4 mb-6 tracking-tight">Outside the ring.<br/>Still in your corner.</h2><p className="text-muted-foreground max-w-md">{data?.contact_instructions || 'Official contact details will appear here when published by the Starfighters team.'}</p></div><div className="flex flex-col gap-2 md:pt-8">{data?.links.filter(l=>l.enabled&&/^(https:\/\/|mailto:|tel:)/.test(l.url)).map(l=><a key={l.label} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-12 py-3 border-b border-border hover:text-primary">{l.label}<ArrowUpRight size={18}/></a>)}{error&&<p className="text-muted-foreground">Contact details are temporarily unavailable.</p>}</div></div><FooterSponsor/><div className="flex flex-wrap gap-6 items-center justify-between mt-8 pt-8 border-t border-border"><Brand/><p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Starfighters. Built on discipline.</p><div className="flex gap-6 text-xs text-muted-foreground"><Link to="/privacy" className="py-3">Privacy</Link><Link to="/admin" className="py-3">Admin access</Link></div></div></footer>;}
+import { getPageContent } from '@/constants/site';
+export default function Footer() {
+  const { data, error } = useSettings();
+  const content = getPageContent(data?.page_content);
+  return <footer id="contact" className="px-6 md:px-16 pt-16 pb-8 border-t border-border">
+    <div className="grid lg:grid-cols-[1.6fr_1fr] gap-8 lg:gap-16">
+      <div><span className="eyebrow text-primary">{content.footerLabel}</span><h2 className="text-4xl md:text-6xl mt-4 mb-6 tracking-tight whitespace-pre-line">{content.footerTitle}</h2><p className="text-muted-foreground max-w-md">{data?.contact_instructions || 'Official contact details will appear here when published by the Starfighters team.'}</p></div>
+      <div><PublicContacts links={data?.links || []} />{error && <p className="text-muted-foreground mt-4">Contact details are temporarily unavailable.</p>}</div>
+    </div>
+    <FooterSponsor />
+    <div className="flex flex-wrap gap-6 items-center justify-between mt-8 pt-8 border-t border-border"><Brand /><p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Starfighters. Built on discipline.</p><Link to="/privacy" className="inline-flex items-center min-h-11 text-sm text-muted-foreground hover:text-accent">Privacy</Link></div>
+  </footer>;
+}
