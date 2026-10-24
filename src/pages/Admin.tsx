@@ -1,0 +1,21 @@
+import { useState } from 'react';
+import { Navigate,useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
+import { useAdminData } from '@/hooks/useAdmin';
+import { adminApi } from '@/lib/api';
+import Header from '@/components/layout/Header';
+import AdminUnlock from '@/components/forms/AdminUnlock';
+import AdminSidebar from '@/components/layout/AdminSidebar';
+import AdminOverview from '@/components/features/AdminOverview';
+import AdminRegistrations from '@/components/features/AdminRegistrations';
+import AdminPolls from '@/components/features/AdminPolls';
+import AdminAnnouncements from '@/components/features/AdminAnnouncements';
+import AdminSettings from '@/components/features/AdminSettings';
+import AdminReports from '@/components/features/AdminReports';
+import AdminAudit from '@/components/features/AdminAudit';
+export default function Admin(){const {user,loading}=useAuth();const query=useQueryClient();const [unlocked,setUnlocked]=useState(!!sessionStorage.getItem('sf-admin-token'));const [busy,setBusy]=useState(false);const [params,setParams]=useSearchParams();const tab=params.get('tab')||'overview';const {data,isLoading,error,refetch}=useAdminData(!!user&&unlocked);const logout=()=>{setBusy(true);adminApi('logout').then(()=>{sessionStorage.removeItem('sf-admin-token');query.removeQueries({queryKey:['admin-data']});setUnlocked(false);toast.success('Administrator session ended.');}).catch(e=>toast.error(e.message)).finally(()=>setBusy(false));};
+ if(loading)return <p className="p-12">Checking your account…</p>;if(!user)return <Navigate to="/login" replace/>;if(!unlocked)return <><Header/><main className="flex flex-col items-center p-6 py-16"><AdminUnlock onUnlock={()=>{query.removeQueries({queryKey:['admin-data']});setUnlocked(true);}}/><p className="max-w-lg mt-6 text-sm text-muted-foreground">Owner setup: authorize your account in the Cloud sf_admins table. See SETUP.md for configuration and the acceptance-test checklist.</p></main></>;
+ return <div className="lg:flex"><AdminSidebar tab={tab} setTab={v=>setParams({tab:v})} logout={logout} busy={busy}/><main className="flex-1 min-w-0 p-6 md:p-10">{isLoading?<p className="p-8">Loading secure community data…</p>:error?<section className="panel"><h1 className="text-2xl font-semibold">Administrator access unavailable</h1><p className="text-muted-foreground mt-4">{error.message}</p><div className="flex gap-3 mt-6"><button className="btn-secondary" onClick={()=>refetch()}>Retry</button><button className="btn-secondary" onClick={()=>{sessionStorage.removeItem('sf-admin-token');query.removeQueries({queryKey:['admin-data']});setUnlocked(false);}}>Unlock again</button></div></section>:data?<>{tab==='overview'&&<AdminOverview data={data}/>} {tab==='registrations'&&<AdminRegistrations members={data.members}/>} {tab==='polls'&&<AdminPolls data={data}/>} {tab==='announcements'&&<AdminAnnouncements announcements={data.announcements}/>} {tab==='settings'&&<AdminSettings key={JSON.stringify(data.settings)} settings={data.settings}/>} {tab==='reports'&&<AdminReports data={data}/>} {tab==='audit'&&<AdminAudit entries={data.auditLog}/>}</>:null}</main></div>;
+}

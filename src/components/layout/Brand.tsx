@@ -1,0 +1,3 @@
+import { Link } from 'react-router-dom';
+import { useSettings } from '@/hooks/useCommunity';
+export default function Brand(){const {data}=useSettings();return <Link to="/" className="flex items-center gap-3 min-h-11" aria-label="Starfighters homepage">{data?.logo_url?<img src={data.logo_url} alt="Starfighters" className="h-10 w-10 object-contain"/>:<span className="text-primary text-[42px] font-extrabold italic leading-none">S<span className="text-accent text-lg align-top">✦</span></span>}<span className="wordmark text-[15px]">STARFIGHTERS<span className="block text-[8px] tracking-[.28em] mt-1.5 font-medium text-muted-foreground">BOXING COMMUNITY</span></span></Link>;}

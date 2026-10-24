@@ -1,0 +1,6 @@
+import { useState } from 'react';
+import { Upload } from 'lucide-react';
+import { toast } from 'sonner';
+import { uploadBrand } from '@/lib/api';
+interface Props{label:string;value:string;onChange:(url:string)=>void;}
+export default function BrandUpload({label,value,onChange}:Props){const [busy,setBusy]=useState(false);const id=label.toLowerCase().replace(/[^a-z]+/g,'-');return <div className="border border-border rounded-xl p-5"><label htmlFor={id}>{label}</label>{value&&<img src={value} alt={label} className="w-full h-40 object-contain bg-secondary rounded-lg mb-4"/>}<div className="flex gap-3"><label className="btn-secondary cursor-pointer !mb-0" htmlFor={id}><Upload size={16}/>{busy?'Uploading…':'Upload image'}</label>{value&&<button type="button" className="btn-secondary" onClick={()=>onChange('')} disabled={busy}>Remove</button>}</div><input id={id} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>{const file=e.target.files?.[0];if(!file)return;setBusy(true);uploadBrand(file).then(r=>{onChange(r.url);toast.success('Image uploaded. Save settings to publish.');}).catch(err=>toast.error(err.message)).finally(()=>setBusy(false));e.target.value='';}}/><p className="text-xs text-muted-foreground mt-3">JPG, PNG, or WebP · maximum 5 MB</p></div>;}

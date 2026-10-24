@@ -1,0 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/api';
+import type { Poll,Vote,PollOption } from '@/types/community';
+interface Props{poll:Poll;votes:Vote[];}
+export default function AdminPollResults({poll,votes}:Props){const {data,error}=useQuery({queryKey:['options',poll.id],queryFn:async()=>{const {data,error}=await supabase.from('sf_options').select('*').eq('poll_id',poll.id);if(error)throw error;return data as PollOption[];}});return <div className="pt-6 mt-6 border-t border-border"><h3 className="font-semibold mb-4">Actual responses</h3>{error&&<p className="text-muted-foreground">Archived choices are unavailable through public access. Reopen as closed to report results.</p>}{data?.map(o=>{const count=votes.filter(v=>v.option_id===o.id).length;return <div className="py-2 flex justify-between gap-4" key={o.id}><span>{o.label}</span><span className="text-accent">{count} · {votes.length?Math.round(count/votes.length*100):0}%</span></div>;})}<p className="text-xs text-muted-foreground mt-4">Percentages use {votes.length} recorded votes as their denominator.</p></div>;}

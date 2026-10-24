@@ -1,0 +1,18 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { ArrowUpRight } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/api';
+import { signupSchema,profileSchema,type SignupValues } from '@/lib/validations';
+import ProfileFields from '@/components/forms/ProfileFields';
+export default function RegistrationForm(){const {user,sendOtp,verify}=useAuth();const navigate=useNavigate();const query=useQueryClient();const [pending,setPending]=useState<SignupValues|null>(null);const [otp,setOtp]=useState('');const [busy,setBusy]=useState(false);
+ const {register,handleSubmit,watch,setValue,formState:{errors}}=useForm<SignupValues>({resolver:zodResolver(user?profileSchema:signupSchema),defaultValues:{name:user?.user_metadata?.username || '',department:'',interest:'Community member',experience:'Beginner',fupre_student:false}});
+ const save=async(values:SignupValues,id:string)=>{const {error}=await supabase.from('sf_members').insert({id,name:values.name,department:values.department,interest:values.interest,experience:values.experience,fupre_student:values.fupre_student,consent:true});if(error)throw error;query.invalidateQueries({queryKey:['registration']});toast.success('Registration submitted. Welcome to your corner.');navigate('/dashboard');};
+ const submit=handleSubmit(values=>{setBusy(true);const action=user?save(values,user.id):sendOtp(values.email).then(()=>{setPending(values);toast.success('A 4-digit code has been sent to your email.');});action.catch(e=>toast.error(e.message)).finally(()=>setBusy(false));});
+ const confirm=()=>{if(!pending)return;setBusy(true);verify(pending.email,otp,pending.password,pending.name).then(u=>{if(!u)throw new Error('Please sign in and complete your registration.');return save(pending,u.id);}).catch(e=>toast.error(e.message)).finally(()=>setBusy(false));};
+ return pending?<div><span className="eyebrow text-accent">VERIFY YOUR EMAIL</span><h2 className="text-2xl mt-3 mb-4">One step from your corner.</h2><p className="text-muted-foreground mb-6">Enter the 4-digit code sent to {pending.email}. It expires after one hour.</p><label htmlFor="otp">Email verification code</label><input id="otp" value={otp} maxLength={4} inputMode="numeric" autoComplete="one-time-code" onChange={e=>setOtp(e.target.value.replace(/\D/g,''))}/><button className="btn-primary w-full mt-6" disabled={busy||otp.length!==4} onClick={confirm}>{busy?'Verifying…':'Verify & join'}<ArrowUpRight size={18}/></button><button className="btn-secondary w-full mt-3" disabled={busy} onClick={()=>sendOtp(pending.email).then(()=>toast.success('New code sent.')).catch(e=>toast.error(e.message))}>Resend code</button><button className="py-3 text-sm text-muted-foreground w-full" onClick={()=>setPending(null)}>Back to registration</button></div>:<form onSubmit={submit}><ProfileFields register={register} errors={errors} account={!user} interest={watch('interest')} fupreStudent={watch('fupre_student')} onStudentChange={confirmed=>setValue('fupre_student',confirmed,{shouldValidate:true,shouldDirty:true})}/><button className="btn-primary w-full mt-5" disabled={busy}>{busy?'Please wait…':user?'Submit registration':'Create account & join'}<ArrowUpRight size={18}/></button><p className="text-xs text-muted-foreground text-center mt-4">Fighters must be current FUPRE students. Community registration does not establish competition eligibility.</p></form>;
+}
